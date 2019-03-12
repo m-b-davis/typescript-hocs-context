@@ -1,44 +1,102 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Playing with HOCs and Context in Typescript
+This repo was created for the purposes of a presentaiton and demo to my team.
 
-## Available Scripts
+This repo is for learning + fun purposes. Not to be taken seriously. 
 
-In the project directory, you can run:
+### Summary: 
 
-### `npm start`
+### provideContexts.tsx
+Wraps up a parent component with the contexts you want to provide:
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+*Usage:*
+```ts
+const PageContainer = (props: PageContainerProps) => {
+  return (
+    <div style={{ width: '39%', margin: '100px auto' }}>
+      <h1>{props.header}</h1>
+      <ContentPage extraProp="hello" />
+    </div>
+  );
+};
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+export default provideContexts<PageContainerProps>([
+  [ContentContext, content],
+  [ContentContext2, content2],
+])(PageContainer);
+```
+*Source:*
 
-### `npm test`
+```ts
+export type ProvideContext<T> = [React.Context<T>, T?];
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+export default function provideContexts<BaseProps>([[Context, value], ...remainingProviders]: ProvideContext<any>[]) {
+  return (Child: React.ComponentType<BaseProps>): React.ComponentType<BaseProps> => {
+    const Wrapped = remainingProviders.length > 0
+      ? provideContexts<BaseProps>(remainingProviders)(Child)
+      : Child;
 
-### `npm run build`
+    // Use default value if not set
+    const contextProps = value && { value };
+    return (props: BaseProps) => (
+      <Context.Provider {...contextProps}>
+        <Wrapped {...props} />
+      </Context.Provider>
+    );
+  }
+}
+```
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### consumeContexts.tsx
+Wraps up a child, pulling in required props from the contexts given
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+*Usage:*
+```ts
+type ExternalProps = { extraProp: string };
+type InjectedProps = ContentType & Pick<ContentType2, 'title2' | 'footer2'>;
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+type Props = InjectedProps & ExternalProps;
 
-### `npm run eject`
+const ContentPage = (props: Props) => <>
+  <h1>From MyContext:</h1>
+  <h2>Title: {props.title}</h2>
+  <h2>Content: </h2>
+    {props.content.map(text => <p key={text}>{text}</p>)}
+  <h2>Footer: </h2>
+  <h5>{props.footer}</h5>
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+  <h1>From MyContext2:</h1>
+  <h2>Title2: {props.title2}</h2>
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+  <h2>Footer2: </h2>
+  <h5>{props.footer2}</h5>
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+  <h1>Extra prop value: {props.extraProp}</h1>
+</>;
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+export default consumeContexts<ExternalProps>([
+  ContentContext,
+  ContentContext2
+])(ContentPage);
+```
 
-## Learn More
+*Source:*
+```ts
+export default function consumeContexts<ExternalProps>([Context, ...remainingContexts]: React.Context<any>[]) {
+  return (Child: React.ComponentType<any>): React.ComponentType<ExternalProps> => {
+    const Wrapped = remainingContexts.length > 0 
+      ? consumeContexts<ExternalProps>(remainingContexts)(Child)
+      : Child;
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    return (props: ExternalProps) => (
+      <Context.Consumer>
+        {context => <Wrapped {...{...context, ...props}} />}
+      </Context.Consumer>
+    );
+  }
+}
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### Benefits:
+ - Component unaware of context -> simpler component trees
+ - Easier testing - export the component without the HOC and test without dependencies
+  
