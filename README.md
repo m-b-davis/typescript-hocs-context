@@ -73,17 +73,22 @@ const ContentPage = (props: Props) => <>
   <h1>Extra prop value: {props.extraProp}</h1>
 </>;
 
+// Multiple contexts
 export default consumeContexts<ExternalProps>([
   ContentContext,
   ContentContext2
 ])(ContentPage);
+
+// One context (no array)
+export default consumeContexts<ExternalProps>(ContentContext)(ContentPage);
 ```
 
 *Source:*
 ```ts
-export default function consumeContexts<ExternalProps>([Context, ...remainingContexts]: React.Context<any>[]) {
+export default function consumeContexts<ExternalProps>(contexts: React.Context<any>[] | React.Context<any>) {
+  const [Context, ...remainingContexts] = Array.isArray(contexts) ? contexts : [contexts];
   return (Child: React.ComponentType<any>): React.ComponentType<ExternalProps> => {
-    const Wrapped = remainingContexts.length > 0 
+    const Wrapped = remainingContexts.length > 0
       ? consumeContexts<ExternalProps>(remainingContexts)(Child)
       : Child;
 
@@ -92,9 +97,11 @@ export default function consumeContexts<ExternalProps>([Context, ...remainingCon
         {context => <Wrapped {...{...context, ...props}} />}
       </Context.Consumer>
     );
-  }
+  };
 }
 ```
+
+
 
 ### Benefits:
  - Component unaware of context -> simpler component trees
