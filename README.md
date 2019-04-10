@@ -29,7 +29,8 @@ export default provideContexts<PageContainerProps>([
 ```ts
 export type ProvideContext<T> = [React.Context<T>, T?];
 
-export default function provideContexts<BaseProps>([[Context, value], ...remainingProviders]: ProvideContext<any>[]) {
+export default function provideContexts<BaseProps>(contexts: ProvideContext<any>[]) {
+  const [[Context, value], ...remainingProviders] = Array.isArray(contexts) ? contexts : [contexts];
   return (Child: React.ComponentType<BaseProps>): React.ComponentType<BaseProps> => {
     const Wrapped = remainingProviders.length > 0
       ? provideContexts<BaseProps>(remainingProviders)(Child)
@@ -42,7 +43,7 @@ export default function provideContexts<BaseProps>([[Context, value], ...remaini
         <Wrapped {...props} />
       </Context.Provider>
     );
-  }
+  };
 }
 ```
 
